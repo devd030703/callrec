@@ -234,8 +234,9 @@ def model_details(engine):
                 for n, h in MODEL_SHA256.items()
             },
         }
-    if engine == "qwen":
-        return read_json(Path(__file__).with_name("qwen-manifest.json"))
+    if engine in ("qwen", "qwen-large"):
+        manifest = "qwen-manifest.json" if engine == "qwen" else "qwen-large-manifest.json"
+        return read_json(Path(__file__).with_name(manifest))
     raise CallrecError(f"Unknown transcription engine: {engine}")
 
 

@@ -285,3 +285,12 @@ accent distinctions, reports word and character error rates, and applies the
 promotion gate. Only use independently established reference text for scoring.
 Class notes and model outputs do not establish what was spoken. A passing score
 is a benchmark result, not verification of an individual transcript.
+
+### Experimental larger Hindi model
+
+`callrec setup --engine qwen-large` explicitly downloads the pinned 1.7B 8-bit
+Qwen model (the weights are approximately 2.46 GB). Select it with
+`callrec start --profile hindi --engine qwen-large`, or reprocess an existing
+lossless session with `callrec reprocess SESSION --model qwen-1.7b`. Its accuracy,
+memory use and throughput have not yet been benchmarked here; the existing
+0.6B model remains the default. Setup requires networking; inference is local.

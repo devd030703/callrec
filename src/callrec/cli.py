@@ -40,7 +40,7 @@ from .transcription import audit_session, playback_audio, prepare_audio
 def load_context(path, engine):
     if not path:
         return None
-    if engine != "qwen":
+    if engine not in ("qwen", "qwen-large"):
         raise CallrecError("Vocabulary context is currently supported only with the Qwen engine.")
     data = read_json(Path(path).expanduser())
     if not isinstance(data, dict) or set(data) != {"hotwords"}:
@@ -350,7 +350,7 @@ def parser():
     p.add_argument("--data-dir", help="Override the local Application Support directory.")
     commands = p.add_subparsers(dest="command", required=True)
     s = commands.add_parser("setup", help="Download pinned Hark and model once (requires network).")
-    s.add_argument("--engine", choices=("auto", "qwen", "whisper"), default="auto")
+    s.add_argument("--engine", choices=("auto", "qwen", "qwen-large", "whisper"), default="auto")
     s.add_argument(
         "--capture-only", action="store_true", help="Install recorder without downloading model."
     )
@@ -359,7 +359,7 @@ def parser():
     )
     s = commands.add_parser("start", help="Start detached microphone + system recording.")
     s.add_argument("--profile", choices=PROFILES, default="general")
-    s.add_argument("--engine", choices=("auto", "qwen", "whisper"), default="auto")
+    s.add_argument("--engine", choices=("auto", "qwen", "qwen-large", "whisper"), default="auto")
     s.add_argument("--capture-only", action="store_true", help="Allow capture before model setup.")
     s.add_argument("--context", help="Private JSON vocabulary file (Qwen only).")
     s = commands.add_parser("status", help="Show capture, processing and latest result; read-only.")
@@ -379,13 +379,13 @@ def parser():
     s = commands.add_parser("transcribe", help="Copy and transcribe an existing audio/video file.")
     s.add_argument("file")
     s.add_argument("--profile", choices=PROFILES, default="general")
-    s.add_argument("--engine", choices=("auto", "qwen", "whisper"), default="auto")
+    s.add_argument("--engine", choices=("auto", "qwen", "qwen-large", "whisper"), default="auto")
     s.add_argument("--context", help="Private JSON vocabulary file (Qwen only).")
     s = commands.add_parser("retry", help="Resume an incomplete session from its checkpoints.")
     s.add_argument("session", help="Session ID or full session directory.")
     s = commands.add_parser("reprocess", help="Create a new session from saved lossless audio.")
     s.add_argument("session")
-    s.add_argument("--model", choices=("qwen-0.6b", "whisper-large-v3"), required=True)
+    s.add_argument("--model", choices=("qwen-0.6b", "qwen-1.7b", "whisper-large-v3"), required=True)
     s.add_argument("--context", help="Private JSON vocabulary file (Qwen only).")
     commands.add_parser("list", help="List saved session IDs and processing status.")
     return p
@@ -446,7 +446,11 @@ def main(argv=None):
                 raise CallrecError(
                     "Verified lossless source is unavailable or changed; original retained."
                 )
-            engine = "qwen" if args.model == "qwen-0.6b" else "whisper"
+            engine = {
+                "qwen-0.6b": "qwen",
+                "qwen-1.7b": "qwen-large",
+                "whisper-large-v3": "whisper",
+            }[args.model]
             model_path(root, engine)
             import_audio(
                 root,

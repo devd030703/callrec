@@ -311,7 +311,7 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
             "profile": metadata["profile"],
             "task": "transcribe",
             "language": {"hindi": "Hindi", "french": "French", "general": None}[metadata["profile"]]
-            if engine == "qwen"
+            if engine in ("qwen", "qwen-large")
             else None,
             "condition_on_previous_text": False,
             "word_timestamps": engine == "whisper",
@@ -376,7 +376,7 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
                     )
 
                     def infer():
-                        if engine == "qwen":
+                        if engine in ("qwen", "qwen-large"):
                             return decode_qwen(
                                 backend,
                                 samples,
@@ -440,7 +440,9 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
                 update_session(
                     session, attempt_reused_windows=reused_windows, attempt_new_windows=new_windows
                 )
-                if engine == "qwen" and findings(" ".join(s["text"] for s in result["segments"])):
+                if engine in ("qwen", "qwen-large") and findings(
+                    " ".join(s["text"] for s in result["segments"])
+                ):
                     retry_candidates(session, result, config, backend, audio)
                 checkpoints.append(result)
                 write_partial(session, checkpoints, len(work))
@@ -520,7 +522,7 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
             "",
         ]
         lines += [f"> {w}" for w in warnings[1:]]
-        if engine == "qwen":
+        if engine in ("qwen", "qwen-large"):
             lines += ["> Timestamps mark audio chunks, not exact word or sentence boundaries."]
         lines += ["", "## Transcript", ""]
         lines += [
@@ -760,12 +762,12 @@ def audit_session(session, root, retry_suspect=False):
             )
         settings = report["settings"]
         write_quality(session, checkpoints, settings, all_candidates(session, checkpoints))
-        if retry_suspect and settings["engine"] == "qwen":
+        if retry_suspect and settings["engine"] in ("qwen", "qwen-large"):
             with lock(root / ".model.lock"):
                 source = prepare_audio(session)
                 backend = ModelProcess(
-                    "qwen",
-                    model_path(root, "qwen"),
+                    settings["engine"],
+                    model_path(root, settings["engine"]),
                     session / "audit.model.log",
                     event=lambda kind, **fields: event(session, kind, operation="audit", **fields),
                 )

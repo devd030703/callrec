@@ -54,7 +54,7 @@ def model_child(connection, engine, model, log_path):
     try:
         with open(log_path, "a", buffering=1) as log:
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
-                if engine == "qwen":
+                if engine in ("qwen", "qwen-large"):
                     from mlx_audio.stt import load
 
                     backend = load(model, strict=True).generate
@@ -69,7 +69,7 @@ def model_child(connection, engine, model, log_path):
                     samples, options = request
                     try:
                         output = backend(samples, **options)
-                        if engine == "qwen":
+                        if engine in ("qwen", "qwen-large"):
                             output = {
                                 k: getattr(output, k)
                                 for k in ("text", "language", "generation_tokens")
@@ -170,4 +170,4 @@ class ModelProcess:
             raise CallrecError("Inference child exited; audio/checkpoints retained.") from e
         if not ok:
             raise CallrecError(f"Inference child failed: {output[-2000:]}")
-        return SimpleNamespace(**output) if self.engine == "qwen" else output
+        return SimpleNamespace(**output) if self.engine in ("qwen", "qwen-large") else output

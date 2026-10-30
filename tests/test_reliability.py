@@ -199,6 +199,28 @@ class Reliability(unittest.TestCase):
             with self.assertRaisesRegex(CallrecError, "context changed"):
                 transcribe_session(s, self.root, backend=lambda *a, **kw: None)
 
+    def test_larger_qwen_uses_its_own_revision_and_qwen_decoder(self):
+        details = model_details("qwen-large")
+        folder = self.root / "models" / details["directory"]
+        folder.mkdir()
+        for name in details["files"]:
+            (folder / name).write_text("fixture")
+        atomic_json(folder / "callrec-model.json", {"revision": details["revision"]})
+        s = self.session()
+        update_session(s, engine="qwen-large")
+        seen = []
+
+        def backend(*args, **kwargs):
+            seen.append(kwargs)
+            return SimpleNamespace(text="नमस्ते English", language="Hindi", generation_tokens=2)
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            transcribe_session(s, self.root, backend=backend)
+        self.assertEqual(
+            read_json(s / "transcript.json")["settings"]["model_revision"], details["revision"]
+        )
+        self.assertEqual(seen[0]["language"], "Hindi")
+
     def test_reprocess_copies_lossless_source_without_changing_parent(self):
         parent = self.session()
         shutil.copyfile(parent / "input.wav", parent / "source.wav")
