@@ -274,3 +274,14 @@ Hark's upstream licenses/notices are retained alongside the installed binary.
 - Hindi model: <https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-8bit>
 - Hindi model revision: `89e96d92ba34aca20b3e29fb10cc284097d1219f`; every file size/hash is pinned in `src/callrec/qwen-manifest.json`.
 - MLX Audio: `0.6.1`.
+
+## Benchmarking known references
+
+`python benchmarks/score.py results.json` compares baseline and candidate text
+against supplied reference text. The input is a JSON array; each entry contains
+`id`, `language`, `reference`, `baseline`, and `candidate`, with optional
+`required_phrases` and `forbidden_phrases` lists. The report preserves script and
+accent distinctions, reports word and character error rates, and applies the
+promotion gate. Only use independently established reference text for scoring.
+Class notes and model outputs do not establish what was spoken. A passing score
+is a benchmark result, not verification of an individual transcript.
