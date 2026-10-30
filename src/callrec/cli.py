@@ -253,6 +253,8 @@ def render_status(item):
     )
     if item["last_error"]:
         print(f"Last error: {item['last_error']}")
+    if item.get("startup_delay_seconds") is not None:
+        print(f"Before first audio: {item['startup_delay_seconds']:.1f}s (not recorded)")
     if item["retry_command"]:
         print(f"Resume: {item['retry_command']}")
     if item["legacy_metrics_incomplete"]:

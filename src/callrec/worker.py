@@ -124,6 +124,7 @@ def capture(session, root):
     last_update = 0
     stop_sent = None
     data_pending = b""
+    first_frame_delay = None
     try:
         with lock(session / ".capture.lock"):
             update_session(session, worker_pid=os.getpid(), capture_started_at=now())
@@ -201,6 +202,13 @@ def capture(session, root):
                         last_frame = tick
                         data_pending += block
                         size = len(data_pending) // FRAME_BYTES * FRAME_BYTES
+                        if size and first_frame_delay is None:
+                            first_frame_delay = round(time.monotonic() - started, 3)
+                            update_session(
+                                session,
+                                first_frame_at=now(),
+                                startup_delay_seconds=first_frame_delay,
+                            )
                         writer.write(data_pending[:size])
                         data_pending = data_pending[size:]
                     if tick - last_update >= 1:

@@ -472,6 +472,11 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
                 "details are in transcript.json recovery_events."
             )
         current = read_json(session / "session.json")
+        if current.get("startup_delay_seconds", 0) > 2:
+            warnings.append(
+                f"No audio was received during the first {current['startup_delay_seconds']:.1f}s "
+                "after capture started; that interval is missing from the recording."
+            )
         if current.get("capture_error"):
             warnings.append(current["capture_error"])
         if current.get("interruptions"):

@@ -169,6 +169,7 @@ def snapshot(root, session):
         "capture_health": capture,
         "transcription_health": health,
         "saved_audio_seconds": data.get("source_duration_seconds", data.get("audio_seconds", 0)),
+        "startup_delay_seconds": data.get("startup_delay_seconds"),
         "audio_saved": (session / "audio.m4a").is_file(),
         "processed_windows": data.get("processed_windows", 0),
         "expected_windows": data.get("expected_windows"),

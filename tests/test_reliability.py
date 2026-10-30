@@ -221,6 +221,15 @@ class Reliability(unittest.TestCase):
         )
         self.assertEqual(seen[0]["language"], "Hindi")
 
+    def test_startup_gap_is_visible_in_final_transcript(self):
+        s = self.session()
+        update_session(s, startup_delay_seconds=8.25)
+        self.complete(s)
+        report = read_json(s / "transcript.json")
+        self.assertTrue(any("first 8.2s" in warning for warning in report["warnings"]))
+        self.assertIn("missing from the recording", (s / "transcript.md").read_text())
+        self.assertEqual(snapshot(self.root, s)["startup_delay_seconds"], 8.25)
+
     def test_reprocess_copies_lossless_source_without_changing_parent(self):
         parent = self.session()
         shutil.copyfile(parent / "input.wav", parent / "source.wav")
@@ -550,6 +559,7 @@ class Reliability(unittest.TestCase):
             for sig, handler in old.items():
                 signal.signal(sig, handler)
         self.assertGreater(read_json(s / "session.json")["audio_seconds"], 0)
+        self.assertGreaterEqual(read_json(s / "session.json")["startup_delay_seconds"], 0)
         self.assertTrue(list((s / "chunks").glob("*.wav")))
 
 
