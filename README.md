@@ -294,3 +294,11 @@ Qwen model (the weights are approximately 2.46 GB). Select it with
 lossless session with `callrec reprocess SESSION --model qwen-1.7b`. Its accuracy,
 memory use and throughput have not yet been benchmarked here; the existing
 0.6B model remains the default. Setup requires networking; inference is local.
+
+To prepare 150 reference cases (10 development and 40 held-out in each of
+Hindi, French, and English), run `python benchmarks/fleurs.py /path/to/local/data`.
+This explicitly downloads approximately 0.9 GB and checks pinned archive hashes;
+the resulting audio and manifest stay in that directory. FLEURS is by Google
+Research, licensed CC BY 4.0: https://huggingface.co/datasets/google/fleurs.
+These read-speech cases do not represent full conversations or establish accuracy
+on an individual lesson.
