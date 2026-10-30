@@ -89,11 +89,14 @@ callrec status --json
 callrec audit SESSION
 callrec audit SESSION --retry-suspect
 callrec retry 2026-10-24_12-00-00-example
+callrec reprocess SESSION --model qwen-0.6b
 ```
 
 Use `retry` with the actual ID from `list`, or its full session directory.
 Existing recordings are copied into a fresh session; the original stays intact.
-An already completed retry does not overwrite its transcript. There is no
+`reprocess` creates a linked session from the fingerprint-verified lossless
+source; it leaves the earlier session unchanged. An already completed retry
+does not overwrite its transcript. There is no
 automatic source deduplication across separate imports.
 
 ## Optional vocabulary context

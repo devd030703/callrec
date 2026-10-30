@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -152,10 +153,13 @@ class Reliability(unittest.TestCase):
     def test_status_distinguishes_supervisor_and_model_memory(self):
         s = self.session()
         (s / "attempts").mkdir()
-        atomic_json(s / "attempts" / "example.json", {
-            "active_processing_seconds": 12.0,
-            "model_process": {"peak_rss_mib": 1200.0},
-        })
+        atomic_json(
+            s / "attempts" / "example.json",
+            {
+                "active_processing_seconds": 12.0,
+                "model_process": {"peak_rss_mib": 1200.0},
+            },
+        )
         update_session(s, attempt_id="example", metrics={"process_peak_rss_mib": 30.0})
         metrics = snapshot(self.root, s)["metrics"]
         self.assertEqual(metrics["supervisor_peak_rss_mib"], 30.0)
@@ -170,9 +174,11 @@ class Reliability(unittest.TestCase):
         atomic_json(s / "context.json", context)
         update_session(s, context_sha256=sha256(s / "context.json"))
         requests = []
+
         def backend(*args, **kwargs):
             requests.append(kwargs)
             return SimpleNamespace(text="आज English", language="Hindi", generation_tokens=2)
+
         with contextlib.redirect_stdout(io.StringIO()):
             transcribe_session(s, self.root, backend=backend)
         report = read_json(s / "transcript.json")
@@ -192,6 +198,27 @@ class Reliability(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(CallrecError, "context changed"):
                 transcribe_session(s, self.root, backend=lambda *a, **kw: None)
+
+    def test_reprocess_copies_lossless_source_without_changing_parent(self):
+        parent = self.session()
+        shutil.copyfile(parent / "input.wav", parent / "source.wav")
+        update_session(parent, status="complete", source_sha256=sha256(parent / "source.wav"))
+        before = {p.relative_to(parent): sha256(p) for p in parent.rglob("*") if p.is_file()}
+        with (
+            patch("callrec.cli.enqueue", return_value="queued"),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            result = main(
+                ["--data-dir", str(self.root), "reprocess", parent.name, "--model", "qwen-0.6b"]
+            )
+        self.assertEqual(result, 0)
+        child = next(p for p in (self.root / "sessions").iterdir() if p != parent)
+        child_data = read_json(child / "session.json")
+        self.assertEqual(child_data["parent_session_id"], parent.name)
+        self.assertEqual(child_data["import_sha256"], sha256(parent / "source.wav"))
+        self.assertEqual(
+            before, {p.relative_to(parent): sha256(p) for p in parent.rglob("*") if p.is_file()}
+        )
 
     def test_stale_pid_never_signalled_and_requires_explicit_retry(self):
         s = self.session()

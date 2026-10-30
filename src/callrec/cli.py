@@ -48,8 +48,14 @@ def load_context(path, engine):
     words = data["hotwords"]
     if not isinstance(words, list) or not 1 <= len(words) <= 40:
         raise CallrecError("Context must contain between 1 and 40 short vocabulary phrases.")
-    if any(not isinstance(w, str) or not w.strip() or len(w) > 80 or len(w.split()) > 4
-           or any(c in w for c in "\n\r.!?।") for w in words):
+    if any(
+        not isinstance(w, str)
+        or not w.strip()
+        or len(w) > 80
+        or len(w.split()) > 4
+        or any(c in w for c in "\n\r.!?।")
+        for w in words
+    ):
         raise CallrecError("Context entries must be short phrases, not sentences.")
     return {"hotwords": [w.strip() for w in words]}
 
@@ -306,7 +312,7 @@ def wait(root, value=None):
         time.sleep(1)
 
 
-def import_audio(root, file, profile, engine="whisper", context=None):
+def import_audio(root, file, profile, engine="whisper", context=None, parent=None, expected=None):
     context = load_context(context, engine)
     file = Path(file).expanduser().resolve()
     if not file.is_file():
@@ -320,9 +326,18 @@ def import_audio(root, file, profile, engine="whisper", context=None):
     target = session / f"input{suffix}"
     with file.open("rb") as src, target.open("xb") as out:
         shutil.copyfileobj(src, out)
+    if expected and sha256(target) != expected:
+        update_session(
+            session, status="import_failed", import_error="Source changed while copying."
+        )
+        raise CallrecError(
+            "Source changed while copying; the original and partial import are retained."
+        )
     update_session(
         session, import_file=target.name, import_sha256=sha256(target), original_path=str(file)
     )
+    if parent:
+        update_session(session, parent_session_id=parent.name)
     print(f"Imported session: {session.name}", flush=True)
     print(f"Transcription: {enqueue(root, session)}\nFollow: callrec wait {session.name}")
 
@@ -368,6 +383,10 @@ def parser():
     s.add_argument("--context", help="Private JSON vocabulary file (Qwen only).")
     s = commands.add_parser("retry", help="Resume an incomplete session from its checkpoints.")
     s.add_argument("session", help="Session ID or full session directory.")
+    s = commands.add_parser("reprocess", help="Create a new session from saved lossless audio.")
+    s.add_argument("session")
+    s.add_argument("--model", choices=("qwen-0.6b", "whisper-large-v3"), required=True)
+    s.add_argument("--context", help="Private JSON vocabulary file (Qwen only).")
     commands.add_parser("list", help="List saved session IDs and processing status.")
     return p
 
@@ -415,6 +434,28 @@ def main(argv=None):
                 raise CallrecError("This session is recording. Run `callrec stop` first.")
             print(
                 f"Session: {session.name}\nTranscription: {enqueue(root, session)}\nFollow: callrec wait {session.name}"
+            )
+        elif args.command == "reprocess":
+            session = resolve_session(root, args.session)
+            data = read_json(session / "session.json")
+            if data["status"] in ("starting", "recording", "queued", "transcribing"):
+                raise CallrecError("Wait for the source session to finish before reprocessing.")
+            source = session / "source.wav"
+            expected = data.get("source_sha256")
+            if not source.is_file() or not expected or sha256(source) != expected:
+                raise CallrecError(
+                    "Verified lossless source is unavailable or changed; original retained."
+                )
+            engine = "qwen" if args.model == "qwen-0.6b" else "whisper"
+            model_path(root, engine)
+            import_audio(
+                root,
+                source,
+                data["profile"],
+                engine,
+                args.context,
+                parent=session,
+                expected=expected,
             )
         elif args.command == "list":
             for path in sorted((root / "sessions").glob("*/session.json"), reverse=True):

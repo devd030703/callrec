@@ -378,7 +378,10 @@ def _transcribe_session(session, root, backend=None, attempt_id=None):
                     def infer():
                         if engine == "qwen":
                             return decode_qwen(
-                                backend, samples, config["language"], config["initial_prompt"],
+                                backend,
+                                samples,
+                                config["language"],
+                                config["initial_prompt"],
                                 config.get("hotwords"),
                             )
                         return backend(
